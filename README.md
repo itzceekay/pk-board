@@ -25,14 +25,14 @@ A single-file, zero-install terminal kanban board built with Python. Renders a t
 ### Option 1: Direct download
 
 ```bash
-curl -o pk https://raw.githubusercontent.com/<you>/pk-board/main/pk
+curl -o pk https://raw.githubusercontent.com/itzceekay/pk-board/main/pk
 chmod +x pk
 ```
 
 ### Option 2: Clone the repo
 
 ```bash
-git clone https://github.com/<you>/pk-board.git
+git clone https://github.com/itzceekay/pk-board.git
 cd pk-board
 chmod +x pk
 ```
