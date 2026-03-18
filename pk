@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pk — Terminal Kanban Board for projektck."""
+"""pk — Personal Kanban for the Terminal."""
 
 import argparse
 import os
@@ -242,7 +242,7 @@ def cmd_ls(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="pk", description="Terminal Kanban Board")
+    parser = argparse.ArgumentParser(prog="pk", description="Personal Kanban for the Terminal")
     sub = parser.add_subparsers(dest="command")
 
     # pk add

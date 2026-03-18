@@ -1,6 +1,8 @@
-# pk — Terminal Kanban Board
+# pk — Personal Kanban for the Terminal
 
-A single-file, zero-install terminal kanban board built with Python. Renders a three-column board (TODO → IN PROGRESS → DONE) right in your terminal using [Rich](https://github.com/Textualize/rich) and SQLite.
+A single-file, zero-install [personal kanban](https://www.personalkanban.com/) board built with Python. Renders a three-column board (TODO → IN PROGRESS → DONE) right in your terminal using [Rich](https://github.com/Textualize/rich) and SQLite.
+
+**pk** stands for **P**ersonal **K**anban — a lightweight approach to managing your own work without the overhead of full-blown project management tools.
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
