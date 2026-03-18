@@ -241,6 +241,38 @@ def cmd_ls(args):
     console.print(table)
 
 
+def cmd_help(args):
+    help_text = """[bold]pk — Personal Kanban for the Terminal[/bold]
+
+[bold underline]Add tasks[/bold underline]
+  pk add "Task title"                     Add a task (general, medium priority)
+  pk add "Title" -p myproject -P 1        Add with project + high priority
+  pk add "Title" -d "Details here"        Add with description
+
+[bold underline]View tasks[/bold underline]
+  pk                                      Show kanban board
+  pk board -p myproject                   Board filtered by project
+  pk ls                                   Flat list view
+
+[bold underline]Move tasks[/bold underline]
+  pk mv 3 progress                        Move task #3 → IN PROGRESS
+  pk mv 3 t                               Move task #3 → TODO (aliases: t/p/d)
+  pk done 3                               Shortcut → DONE
+
+[bold underline]Edit & delete[/bold underline]
+  pk edit 3 -t "New title"                Edit title
+  pk edit 3 -P 1 -p newproject            Edit priority + project
+  pk rm 3                                 Delete task (with confirmation)
+  pk rm 3 -y                              Delete without confirmation
+
+[bold underline]Archive[/bold underline]
+  pk archive                              Archive all DONE tasks
+
+[bold underline]Priority levels[/bold underline]
+  -P 1  [red]▲[/red] High    -P 2  [yellow]■[/yellow] Medium    -P 3  [dim]▼[/dim] Low"""
+    console.print(Panel(help_text, border_style="dim", padding=(1, 2)))
+
+
 def main():
     parser = argparse.ArgumentParser(prog="pk", description="Personal Kanban for the Terminal")
     sub = parser.add_subparsers(dest="command")
@@ -277,6 +309,9 @@ def main():
     # pk archive
     sub.add_parser("archive", help="Archive all done tasks")
 
+    # pk help
+    sub.add_parser("help", help="Show usage examples")
+
     # pk ls
     p_ls = sub.add_parser("ls", help="Flat list view")
     p_ls.add_argument("-p", "--project", help="Filter by project")
@@ -296,6 +331,7 @@ def main():
         "archive": cmd_archive,
         "ls": cmd_ls,
         "board": cmd_board,
+        "help": cmd_help,
     }
 
     if args.command is None:
