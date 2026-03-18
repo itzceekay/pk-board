@@ -68,7 +68,7 @@ source ~/.zshrc
 pk add "Set up CI pipeline"
 
 # Add with project and priority
-pk add "Fix auth bug" -p myproject -P 1
+pk add "Fix auth bug" -p backend -P 1
 
 # View the board
 pk
@@ -91,7 +91,7 @@ pk add "Task title"                       # default: general project, medium pri
 pk add "Task title" -p projectname        # assign to a project
 pk add "Task title" -P 1                  # high priority (1=high, 2=med, 3=low)
 pk add "Task title" -d "More details"     # add a description
-pk add "Deploy v2" -p myapp -P 1 -d "Needs QA signoff"   # all options
+pk add "Deploy v2" -p backend -P 1 -d "Needs QA signoff"   # all options
 ```
 
 ### Move tasks between columns
@@ -136,8 +136,8 @@ pk rm 3 -y           # delete without confirmation
 
 ```bash
 pk archive           # archive all DONE tasks (hides from board)
-pk board -p myapp    # board filtered to one project
-pk ls -p myapp       # list filtered to one project
+pk board -p backend    # board filtered to one project
+pk ls -p backend       # list filtered to one project
 ```
 
 ## Board Layout
@@ -147,11 +147,11 @@ pk ls -p myapp       # list filtered to one project
  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ╭────────────────────╮  ╭────────────────────╮  ╭────────────────────╮
   │ ▲ #1 Fix auth bug  │  │ ■ #3 Write tests   │  │ ▼ #4 Update docs   │
-  │    myproject       │  │    general         │  │    general         │
+  │    backend       │  │    general         │  │    general         │
   ╰────────────────────╯  ╰────────────────────╯  ╰────────────────────╯
   ╭────────────────────╮
   │ ■ #2 Add logging   │
-  │    myproject       │
+  │    backend       │
   ╰────────────────────╯
 ```
 
@@ -165,9 +165,9 @@ Edit the constants near the top of `pk`:
 ```python
 # Add your own project colors
 PROJECT_COLORS = {
-    "greenday": "green",
-    "clawdbot": "blue",
-    "myproject": "magenta",
+    "backend": "green",
+    "frontend": "blue",
+    "devops": "magenta",
 }
 
 # Priority display
