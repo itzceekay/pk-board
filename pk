@@ -1,0 +1,310 @@
+#!/usr/bin/env python3
+"""pk — Terminal Kanban Board for projektck."""
+
+import argparse
+import os
+import sqlite3
+import sys
+from pathlib import Path
+
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich import box
+
+DB_PATH = Path(__file__).parent / ".pk.db"
+console = Console()
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS tasks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,
+    project     TEXT NOT NULL DEFAULT 'general',
+    priority    INTEGER NOT NULL DEFAULT 2,
+    status      TEXT NOT NULL DEFAULT 'todo',
+    description TEXT DEFAULT '',
+    created_at  TEXT DEFAULT (datetime('now','localtime')),
+    updated_at  TEXT DEFAULT (datetime('now','localtime')),
+    archived    INTEGER NOT NULL DEFAULT 0
+);
+"""
+
+STATUS_ALIASES = {
+    "t": "todo", "todo": "todo",
+    "p": "progress", "progress": "progress", "in progress": "progress",
+    "d": "done", "done": "done",
+}
+
+PROJECT_COLORS = {
+    "greenday": "green",
+    "clawdbot": "blue",
+}
+
+PRIORITY_ICONS = {
+    1: ("[red]▲[/red]", "HIGH"),
+    2: ("[yellow]■[/yellow]", "MED"),
+    3: ("[dim]▼[/dim]", "LOW"),
+}
+
+STATUS_DISPLAY = {
+    "todo": "TODO",
+    "progress": "IN PROGRESS",
+    "done": "DONE",
+}
+
+
+def get_conn():
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    return conn
+
+
+def cmd_add(args):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO tasks (title, project, priority, description) VALUES (?, ?, ?, ?)",
+            (args.title, args.project, args.priority, args.description or ""),
+        )
+        task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    console.print(f"[green]✓[/green] Added task [bold]#{task_id}[/bold]: {args.title}")
+
+
+def cmd_mv(args):
+    target = STATUS_ALIASES.get(args.status.lower())
+    if not target:
+        console.print(f"[red]Unknown status:[/red] {args.status}  (use t/p/d or todo/progress/done)")
+        sys.exit(1)
+    with get_conn() as conn:
+        row = conn.execute("SELECT id FROM tasks WHERE id = ? AND archived = 0", (args.id,)).fetchone()
+        if not row:
+            console.print(f"[red]Task #{args.id} not found[/red]")
+            sys.exit(1)
+        conn.execute(
+            "UPDATE tasks SET status = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+            (target, args.id),
+        )
+    console.print(f"[green]✓[/green] Task [bold]#{args.id}[/bold] → {STATUS_DISPLAY[target]}")
+
+
+def cmd_done(args):
+    args.status = "done"
+    cmd_mv(args)
+
+
+def cmd_edit(args):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM tasks WHERE id = ? AND archived = 0", (args.id,)).fetchone()
+        if not row:
+            console.print(f"[red]Task #{args.id} not found[/red]")
+            sys.exit(1)
+        updates = []
+        params = []
+        if args.title:
+            updates.append("title = ?")
+            params.append(args.title)
+        if args.priority:
+            updates.append("priority = ?")
+            params.append(args.priority)
+        if args.project:
+            updates.append("project = ?")
+            params.append(args.project)
+        if args.description is not None:
+            updates.append("description = ?")
+            params.append(args.description)
+        if not updates:
+            console.print("[yellow]Nothing to update[/yellow]")
+            return
+        updates.append("updated_at = datetime('now','localtime')")
+        params.append(args.id)
+        conn.execute(f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?", params)
+    console.print(f"[green]✓[/green] Updated task [bold]#{args.id}[/bold]")
+
+
+def cmd_rm(args):
+    with get_conn() as conn:
+        row = conn.execute("SELECT title FROM tasks WHERE id = ?", (args.id,)).fetchone()
+        if not row:
+            console.print(f"[red]Task #{args.id} not found[/red]")
+            sys.exit(1)
+    if not args.yes:
+        answer = input(f"Delete task #{args.id} \"{row['title']}\"? [y/N] ")
+        if answer.lower() != "y":
+            console.print("Cancelled")
+            return
+    with get_conn() as conn:
+        conn.execute("DELETE FROM tasks WHERE id = ?", (args.id,))
+    console.print(f"[green]✓[/green] Deleted task [bold]#{args.id}[/bold]")
+
+
+def cmd_archive(args):
+    with get_conn() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM tasks WHERE status = 'done' AND archived = 0"
+        ).fetchone()[0]
+        if count == 0:
+            console.print("[yellow]No done tasks to archive[/yellow]")
+            return
+        conn.execute(
+            "UPDATE tasks SET archived = 1, updated_at = datetime('now','localtime') WHERE status = 'done' AND archived = 0"
+        )
+    console.print(f"[green]✓[/green] Archived {count} task(s)")
+
+
+def render_card(task):
+    icon, _ = PRIORITY_ICONS.get(task["priority"], PRIORITY_ICONS[2])
+    color = PROJECT_COLORS.get(task["project"], "white")
+    title_line = f"{icon} [bold]#{task['id']}[/bold] {task['title']}"
+    subtitle = f"[dim]{task['project']}[/dim]"
+    desc = task["description"]
+    body = f"{title_line}\n{subtitle}"
+    if desc:
+        body += f"\n[dim italic]{desc}[/dim italic]"
+    return Panel(body, border_style=color, width=30, padding=(0, 1))
+
+
+def cmd_board(args):
+    width = console.width
+    if width < 60:
+        return cmd_ls(args)
+
+    with get_conn() as conn:
+        query = "SELECT * FROM tasks WHERE archived = 0"
+        params = []
+        if hasattr(args, "project") and args.project:
+            query += " AND project = ?"
+            params.append(args.project)
+        query += " ORDER BY priority, id"
+        rows = conn.execute(query, params).fetchall()
+
+    columns = {"todo": [], "progress": [], "done": []}
+    for row in rows:
+        task = dict(row)
+        if task["status"] in columns:
+            columns[task["status"]].append(render_card(task))
+
+    table = Table(
+        box=box.SIMPLE_HEAVY,
+        show_lines=False,
+        pad_edge=True,
+        expand=True,
+    )
+    table.add_column(f"[bold]TODO[/bold] ({len(columns['todo'])})", justify="center", ratio=1)
+    table.add_column(f"[bold]IN PROGRESS[/bold] ({len(columns['progress'])})", justify="center", ratio=1)
+    table.add_column(f"[bold]DONE[/bold] ({len(columns['done'])})", justify="center", ratio=1)
+
+    max_rows = max(len(columns["todo"]), len(columns["progress"]), len(columns["done"]), 1)
+    for i in range(max_rows):
+        table.add_row(
+            columns["todo"][i] if i < len(columns["todo"]) else "",
+            columns["progress"][i] if i < len(columns["progress"]) else "",
+            columns["done"][i] if i < len(columns["done"]) else "",
+        )
+
+    if hasattr(args, "project") and args.project:
+        console.print(f"\n[dim]Filtered: {args.project}[/dim]")
+    console.print(table)
+
+
+def cmd_ls(args):
+    with get_conn() as conn:
+        query = "SELECT * FROM tasks WHERE archived = 0"
+        params = []
+        if hasattr(args, "project") and args.project:
+            query += " AND project = ?"
+            params.append(args.project)
+        query += " ORDER BY status, priority, id"
+        rows = conn.execute(query, params).fetchall()
+
+    if not rows:
+        console.print("[dim]No active tasks[/dim]")
+        return
+
+    table = Table(box=box.SIMPLE)
+    table.add_column("#", style="bold", width=4)
+    table.add_column("Status", width=12)
+    table.add_column("Pri", width=4)
+    table.add_column("Project", width=10)
+    table.add_column("Title")
+
+    for row in rows:
+        icon, label = PRIORITY_ICONS.get(row["priority"], PRIORITY_ICONS[2])
+        status_str = STATUS_DISPLAY.get(row["status"], row["status"])
+        color = PROJECT_COLORS.get(row["project"], "white")
+        table.add_row(
+            str(row["id"]),
+            status_str,
+            icon,
+            f"[{color}]{row['project']}[/{color}]",
+            row["title"],
+        )
+    console.print(table)
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="pk", description="Terminal Kanban Board")
+    sub = parser.add_subparsers(dest="command")
+
+    # pk add
+    p_add = sub.add_parser("add", help="Add a new task")
+    p_add.add_argument("title", help="Task title")
+    p_add.add_argument("-p", "--project", default="general", help="Project name")
+    p_add.add_argument("-P", "--priority", type=int, default=2, choices=[1, 2, 3], help="Priority (1=high, 2=med, 3=low)")
+    p_add.add_argument("-d", "--description", help="Task description")
+
+    # pk mv
+    p_mv = sub.add_parser("mv", help="Move task to status")
+    p_mv.add_argument("id", type=int, help="Task ID")
+    p_mv.add_argument("status", help="Target status (t/p/d or todo/progress/done)")
+
+    # pk done
+    p_done = sub.add_parser("done", help="Mark task as done")
+    p_done.add_argument("id", type=int, help="Task ID")
+
+    # pk edit
+    p_edit = sub.add_parser("edit", help="Edit a task")
+    p_edit.add_argument("id", type=int, help="Task ID")
+    p_edit.add_argument("-t", "--title", help="New title")
+    p_edit.add_argument("-P", "--priority", type=int, choices=[1, 2, 3], help="New priority")
+    p_edit.add_argument("-p", "--project", help="New project")
+    p_edit.add_argument("-d", "--description", help="New description")
+
+    # pk rm
+    p_rm = sub.add_parser("rm", help="Delete a task")
+    p_rm.add_argument("id", type=int, help="Task ID")
+    p_rm.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
+
+    # pk archive
+    sub.add_parser("archive", help="Archive all done tasks")
+
+    # pk ls
+    p_ls = sub.add_parser("ls", help="Flat list view")
+    p_ls.add_argument("-p", "--project", help="Filter by project")
+
+    # pk board
+    p_board = sub.add_parser("board", help="Kanban board view")
+    p_board.add_argument("-p", "--project", help="Filter by project")
+
+    args = parser.parse_args()
+
+    commands = {
+        "add": cmd_add,
+        "mv": cmd_mv,
+        "done": cmd_done,
+        "edit": cmd_edit,
+        "rm": cmd_rm,
+        "archive": cmd_archive,
+        "ls": cmd_ls,
+        "board": cmd_board,
+    }
+
+    if args.command is None:
+        cmd_board(args)
+    elif args.command in commands:
+        commands[args.command](args)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
