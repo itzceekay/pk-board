@@ -24,43 +24,28 @@ A single-file, zero-install personal kanban board built with Python. Renders a t
 
 ## Installation
 
-### Option 1: Direct download
+### pip (recommended)
+
+```bash
+pip install pk-board
+```
+
+### pipx (isolated install)
+
+```bash
+pipx install pk-board
+```
+
+### Standalone script
+
+`pk` is also available as a single file — no packaging required:
 
 ```bash
 curl -o pk https://raw.githubusercontent.com/itzceekay/pk-board/main/pk
 chmod +x pk
-```
 
-### Option 2: Clone the repo
-
-```bash
-git clone https://github.com/itzceekay/pk-board.git
-cd pk-board
-chmod +x pk
-```
-
-### Option 3: Just copy the file
-
-`pk` is a single file — copy it anywhere on your system.
-
-### Set up a shell alias (recommended)
-
-Add to your `~/.zshrc` or `~/.bashrc`:
-
-```bash
+# Add to your shell (requires rich: pip install rich)
 alias pk='python3 /path/to/pk'
-```
-
-If you're using a virtualenv that has `rich` installed:
-
-```bash
-alias pk='/path/to/venv/bin/python3 /path/to/pk'
-```
-
-Reload your shell:
-
-```bash
-source ~/.zshrc
 ```
 
 ## Quick Start

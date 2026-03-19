@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
 """pk — Personal Kanban for the Terminal."""
 
 import argparse
-import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -339,7 +337,3 @@ def main():
         commands[args.command](args)
     else:
         parser.print_help()
-
-
-if __name__ == "__main__":
-    main()
